@@ -1,0 +1,10 @@
+{"action1":["kill_all_containers","delete_forever"],
+ "action2":["next_element","swap_horiz"],
+ "action3":["clear_vnc","keyboard_hide"],
+ "action4":["launch_smallsize","tab"],
+ "action5":["fullscreenApp","all_out"],
+ "action6":["save_all","save"],
+ "action7":["fit_to_window","fullscreen"],
+ "action8":["new_rect","crop"],
+ "action9":["collect_Yolo","featured_play_list"]
+}

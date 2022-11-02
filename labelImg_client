@@ -1,0 +1,35 @@
+#!/bin/bash
+file_name=${1:-Cool_0110_Locked/0110-Cool-0110_Locked_p12_mean_3.png}
+
+echo ${DOCKERID}; export DISPLAY=:1;
+cd $HOME
+
+echo "sed with ${file_name}"
+sed -e "s&inputfile&${file_name}&g" /home/myuser/CASE/label.py > /home/myuser/.vnc/label.py
+chmod u+x /home/myuser/.vnc/label.py
+#cp -fp .vnc/label.py /home/myuser/CASE/label_${DOCKERID}.py
+cp -f CASE/classes.txt .vnc/
+
+OUT_YOLO=$(echo $(basename $file_name)| sed -e 's&png&txt&')
+echo ${DOCKERID} ${file_name} ${OUT_YOLO} >> CASE/list_containers
+cd /home/myuser/.vnc
+# head -1 ./predefined_classes.txt > ./${OUT_YOLO}
+
+OUT=/home/myuser/.vnc/out_labelImg
+source /labelImg/bin/activate > ${OUT} 2>&1
+./label.py >> ${OUT} 2>&1 &
+
+i=0
+while [ true ]; do
+    sleep 1
+    pgrep -fla label.py | wc -l |awk '{print ($1 >= 1)}' |grep 1
+    RET=$?
+    if [ $RET -eq 0 ]; then
+	break
+    elif [ $i -gt 100 ]; then
+	break
+    fi
+    i=$((i+1))
+    sleep 1
+done
+exit $RET
