@@ -316,42 +316,43 @@ sys.stdout.flush()
 
 def next_element(script='labelImg_client',tileNum=-1,tileId='001'):
     global TiledSet,nodeRead
-    tile=tilednodes[nodeRead]
-    file_name=tile["comment"].split('png')[0]+'png'
-    COMMAND=' '+os.path.join(CASE_DOCKER_PATH,script)+' '+file_name
-    COMMANDKill=' '+CASE_DOCKER_PATH+"kill_labelImg"
-    if ( tileNum > -1 ):
-        tileId=containerId(tileNum+1)
-    else:
-        # FAUX !! après des next ce n'est plus forcément le cas...
-        tileNum=int(tileId)-1 
-    TiledSet[tileNum]=nodeRead
-    TilesStr=' Tiles=('+tileId+') '
-    print("%s labelImg command : %s" % (TilesStr,COMMAND))
+    try:
+        tile=tilednodes[nodeRead]
+        file_name=tile["comment"].split('png')[0]+'png'
+        COMMAND=' '+os.path.join(CASE_DOCKER_PATH,script)+' '+file_name
+        COMMANDKill=' '+CASE_DOCKER_PATH+"kill_labelImg"
+        if ( tileNum > -1 ):
+            tileId=containerId(tileNum+1)
+        else:
+            tileNum=int(tileId)-1 
+        TiledSet[tileNum]=nodeRead
+        TilesStr=' Tiles=('+tileId+') '
+        print("%s labelImg command : %s" % (TilesStr,COMMAND))
 
-    CommandTSK=ExecuteTS+TilesStr+COMMANDKill
-    client.send_server(CommandTSK)
-    client.get_OK()
+        CommandTSK=ExecuteTS+TilesStr+COMMANDKill
+        client.send_server(CommandTSK)
+        client.get_OK()
     
-    CommandTS=ExecuteTS+TilesStr+COMMAND
-    client.send_server(CommandTS)
-    client.get_OK()
+        CommandTS=ExecuteTS+TilesStr+COMMAND
+        client.send_server(CommandTS)
+        client.get_OK()
+        
+        nodes["nodes"][tileNum]["title"]=tileId+" "+os.path.basename(file_name)
+        if ("variable" in nodes["nodes"][tileNum]):
+            nodes["nodes"][tileNum]["variable"]="ID-"+tileId+"_"+os.path.basename(file_name)
+            nodes["nodes"][tileNum]["comment"]=tile["comment"]
+        if ("usersNotes" in nodes["nodes"][tileNum]):
+            nodes["nodes"][tileNum]["usersNotes"]=re.sub(r'file .*',"file "+file_name,
+                                                     nodes["nodes"][tileNum]["usersNotes"])+" tilenum "+str(nodeRead)
+        nodes["nodes"][tileNum]["tags"]=tile["tags"]
+        nodes["nodes"][tileNum]["tags"].append(TileSet)
 
-    nodes["nodes"][tileNum]["title"]=tileId+" "+os.path.basename(file_name)
-    if ("variable" in nodes["nodes"][tileNum]):
-        nodes["nodes"][tileNum]["variable"]="ID-"+tileId+"_"+os.path.basename(file_name)
-    nodes["nodes"][tileNum]["comment"]=tile["comment"]
-    if ("usersNotes" in nodes["nodes"][tileNum]):
-        nodes["nodes"][tileNum]["usersNotes"]=re.sub(r'file .*',"file "+file_name,
-                                                     nodes["nodes"][tileNum]["usersNotes"])
-    nodes["nodes"][tileNum]["tags"]=tile["tags"]
-    nodes["nodes"][tileNum]["tags"].append(TileSet)
-
-    nodesf=open("nodes.json",'w')
-    nodesf.write(json.dumps(nodes))
-    nodesf.close()
-
-    nodeRead=nodeRead+1
+        nodesf=open("nodes.json",'w')
+        nodesf.write(json.dumps(nodes))
+        nodesf.close()
+        nodeRead=nodeRead+1
+    except:
+        print("No more next element for : %d" % (nodeRead))
 
 def collect_all_Yolo():
     for i in range(NUM_DOCKERS):
@@ -429,9 +430,11 @@ if (stateVM):
 def save_all(tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
         TilesStr=' Tiles=('+containerId(tileNum+1)+') '
+        click_point(tileNum=tileNum,X=64,Y=468)
     else:
         TilesStr=' Tiles=('+tileId+') '
-    COMMAND=" xdotool key s --window $(xdotool search label)"
+        click_point(tileId=tileId,X=64,Y=468)
+    COMMAND=" xdotool key --window $(xdotool search --name label) s "
     client.send_server(ExecuteTS+TilesStr+COMMAND)
     print("Out of save_all %s : %s" % (TilesStr,str(client.get_OK())))
     
@@ -440,7 +443,7 @@ def fit_to_window(tileNum=-1,tileId='001'):
         TilesStr=' Tiles=('+containerId(tileNum+1)+') '
     else:
         TilesStr=' Tiles=('+tileId+') '
-    COMMAND=" xdotool key 'ctrl+f' --window $(xdotool search label)"
+    COMMAND=" xdotool key --window $(xdotool search --name label) 'ctrl+f' "
     client.send_server(ExecuteTS+TilesStr+COMMAND)
     print("Out of fit_to_window %s : %s" % (TilesStr,str(client.get_OK())))
     
@@ -456,13 +459,18 @@ def click_point(tileNum=-1,tileId='001',X=0,Y=0):
 
 
 def new_rect(tileNum=-1,tileId='001'):
-    x=60
-    y=559 
+    x=525
+    y=360 
     if ( tileNum > -1 ):
-        fullscreenApp(windowname="labelImg",tileNum=-1)
+        #fullscreenApp(windowname="labelImg",tileNum=-1)
         click_point(tileNum=tileNum,X=x,Y=y)
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '
     else:
         click_point(tileId=tileId,X=x,Y=y)
+        TilesStr=' Tiles=('+tileId+') '
+    COMMAND=" xdotool key --window $(xdotool search --name label) W "
+    client.send_server(ExecuteTS+TilesStr+COMMAND)
+    print("Out of new_rect %s : %s" % (TilesStr,str(client.get_OK())))
 
 
 def toggle_fullscr():
@@ -487,8 +495,11 @@ def launch_bigsize(tileNum=-1):
     print("Launch launch_changesize bigsize for tile "+str(tileNum))
     launch_changesize(tileNum=tileNum,RESOL="1920x1200")
 
-def fullscreenApp(windowname="labelImg",tileNum=-1):
-    movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileNum=tileNum)
+def fullscreenApp(windowname="labelImg",tileNum=-1,tileId='001'):
+    if ( tileNum > -1 ):
+        movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileNum=tileNum)
+    else:
+        movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileId=tileId)
     
 def movewindows(windowname="labelImg",wmctrl_option='toggle,fullscreen',tileNum=-1,tileId='001'):
     COMMAND='/opt/movewindows '+windowname+' -b '+wmctrl_option
@@ -526,16 +537,15 @@ def kill_all_containers():
     client.send_server(ExecuteTS+' killall Xvnc')
     print("Out of killall command : "+ str(client.get_OK()))
     client.send_server(LaunchTS+" "+COMMANDStop)
-    taglist.close()
     client.close()
+
+
+launch_actions_and_interact()
 
 try:
     print("isActions: "+str(isActions))
 except:
     print("isActions not defined.")
-
-#isActions=True
-launch_actions_and_interact()
 
 kill_all_containers()
 
