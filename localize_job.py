@@ -288,16 +288,58 @@ def launch_vnc():
 if (stateVM):
     launch_vnc()
 
+def get_old_YOLO(tile,nodeRead,TilesStr):
+    file_name=os.path.basename(tile["url"])
+    try:
+        if (len(tile["comment"].split("YOLO"))>1):
+            tileyolo=eval(tile["comment"].split("YOLO=")[1])
+            OUT_YOLO=file_name.split('png')[0]+'txt'
+
+            #TODO : test and change for multiple box on one image cf l437
+            with open("classes_"+OUT_YOLO,'w') as classef:
+                with open(OUT_YOLO,'w') as out_yolof:
+                    for i in range(len(tileyolo)):
+                        if (i<len(tileyolo)/2):
+                            classef.write(f"{tileyolo[i]}"+"\n")
+                        else:
+                            out_yolof.write(f"{tileyolo[i]}"+"\n")
+            
+            send_file_server(client,TileSet,".", "classes_"+OUT_YOLO, JOBPath)
+            send_file_server(client,TileSet,".", OUT_YOLO, JOBPath)
+            COMMANDi=ExecuteTS+TilesStr+" mv -f "+os.path.join("CASE","classes_"+OUT_YOLO)+" ./.vnc/classes.txt"
+            print("%s move old classes command : %s" % (TilesStr,COMMANDi))
+            client.send_server(COMMANDi)
+            client.get_OK()
+            COMMANDi=ExecuteTS+TilesStr+" mv -f "+os.path.join("CASE",OUT_YOLO)+" .vnc/"
+            print("%s move old labels command : %s" % (TilesStr,COMMANDi))
+            client.send_server(COMMANDi)
+            client.get_OK()
+    except:
+        print("Error get_old_YOLO(tile %s,nodeRead %d) !" % (tile["title"],nodeRead))
+        traceback.print_exc(file=sys.stdout)
+
+    
 nodeRead=0
 def launch_one_client(script='labelImg_client',tileNum=-1,tileId='001'):
     global nodeRead
     tile=tilednodes[nodeRead]
-    file_name=tile["comment"].split('png')[0]+'png'
-    COMMAND=' '+os.path.join(CASE_DOCKER_PATH,script)+' '+file_name
     if ( tileNum > -1 ):
         TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
     else:
         TilesStr=' Tiles=('+tileId+') '
+
+    get_old_YOLO(tile,nodeRead,TilesStr)
+        
+    file_name=os.path.basename(tile["url"])
+    dir_name=os.path.basename(os.path.dirname(tile["url"]))
+    
+    COMMANDi=ExecuteTS+TilesStr+" cp "+os.path.join("/datas/"+dir_name,file_name)+" "+os.path.join("/home/myuser/.vnc/",file_name)
+    print("%s copy input file command : %s" % (TilesStr,COMMANDi))
+    client.send_server(COMMANDi)
+    client.get_OK()
+
+    COMMAND=' '+os.path.join(CASE_DOCKER_PATH,script)+" "+os.path.join("/home/myuser/.vnc/",file_name)
+
     print("%s labelImg command : %s" % (TilesStr,COMMAND))
     CommandTS=ExecuteTS+TilesStr+COMMAND
     client.send_server(CommandTS)
@@ -318,8 +360,6 @@ def next_element(script='labelImg_client',tileNum=-1,tileId='001'):
     global TiledSet,nodeRead
     try:
         tile=tilednodes[nodeRead]
-        file_name=tile["comment"].split('png')[0]+'png'
-        COMMAND=' '+os.path.join(CASE_DOCKER_PATH,script)+' '+file_name
         COMMANDKill=' '+CASE_DOCKER_PATH+"kill_labelImg"
         if ( tileNum > -1 ):
             tileId=containerId(tileNum+1)
@@ -327,22 +367,34 @@ def next_element(script='labelImg_client',tileNum=-1,tileId='001'):
             tileNum=int(tileId)-1 
         TiledSet[tileNum]=nodeRead
         TilesStr=' Tiles=('+tileId+') '
+
+        file_name=os.path.basename(tile["url"])
+        dir_name=os.path.basename(os.path.dirname(tile["url"]))
+    
+        COMMANDi=ExecuteTS+TilesStr+" cp "+os.path.join("/datas/"+dir_name,file_name)+" "+os.path.join("/home/myuser/.vnc/",file_name)
+        print("%s copy input file command : %s" % (TilesStr,COMMANDi))
+        client.send_server(COMMANDi)
+        client.get_OK()
+
+        COMMAND=' '+os.path.join(CASE_DOCKER_PATH,script)+" "+os.path.join("/home/myuser/.vnc/",file_name)
         print("%s labelImg command : %s" % (TilesStr,COMMAND))
 
         CommandTSK=ExecuteTS+TilesStr+COMMANDKill
         client.send_server(CommandTSK)
         client.get_OK()
     
+        get_old_YOLO(tile,nodeRead,TilesStr)
+
         CommandTS=ExecuteTS+TilesStr+COMMAND
         client.send_server(CommandTS)
         client.get_OK()
         
-        nodes["nodes"][tileNum]["title"]=tileId+" "+os.path.basename(file_name)
+        nodes["nodes"][tileNum]["title"]=tileId+" "+file_name
         if ("variable" in nodes["nodes"][tileNum]):
-            nodes["nodes"][tileNum]["variable"]="ID-"+tileId+"_"+os.path.basename(file_name)
+            nodes["nodes"][tileNum]["variable"]="ID-"+tileId+"_"+file_name
             nodes["nodes"][tileNum]["comment"]=tile["comment"]
         if ("usersNotes" in nodes["nodes"][tileNum]):
-            nodes["nodes"][tileNum]["usersNotes"]=re.sub(r'file .*',"file "+file_name,
+            nodes["nodes"][tileNum]["usersNotes"]=re.sub(r'file .*',"file "+os.path.join(dir_name,file_name),
                                                      nodes["nodes"][tileNum]["usersNotes"])+" tilenum "+str(nodeRead)
         nodes["nodes"][tileNum]["tags"]=tile["tags"]
         nodes["nodes"][tileNum]["tags"].append(TileSet)
@@ -354,12 +406,20 @@ def next_element(script='labelImg_client',tileNum=-1,tileId='001'):
     except:
         print("No more next element for : %d" % (nodeRead))
 
+
+def re_initialization():
+    global nodeRead
+    nodeRead=0
+    for i in range(NUM_DOCKERS):
+        next_element(tileNum=i)
+    sys.stdout.flush()
+
 def collect_all_Yolo():
     for i in range(NUM_DOCKERS):
-        collect_Yolo(tileNum=i,loadnodes=False)
+        collect_Yolo(tileNum=i)
     launch_nodes_json()
         
-def collect_Yolo(tileNum=-1,tileId='001',loadnodes=True):
+def collect_Yolo(tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
         DOCKERID=containerId(tileNum+1)
         TilesStr=' Tiles=('+DOCKERID+') '
@@ -369,9 +429,11 @@ def collect_Yolo(tileNum=-1,tileId='001',loadnodes=True):
         # FAUX !! après des next ce n'est plus forcément le cas...
         tileNum=int(tileId)-1 
     tile=tilednodes[TiledSet[tileNum]]
-    file_name=tile["comment"].split('png')[0]+'txt'
-    OUT_YOLO=os.path.basename(file_name)
-    COMMAND=' cat /home/myuser/.vnc/classes.txt /home/myuser/.vnc/'+OUT_YOLO+' > /home/myuser/CASE/'+DOCKERID+'_'+OUT_YOLO
+    #file_name=tile["comment"].split('png')[0]+'txt'
+    file_name=os.path.basename(tile["url"])
+    OUT_YOLO=file_name.split('png')[0]+'txt'
+    #COMMAND=' cat /home/myuser/.vnc/classes.txt /home/myuser/.vnc/'+OUT_YOLO+' > /home/myuser/CASE/'+DOCKERID+'_'+OUT_YOLO
+    COMMAND=' for f in \"/home/myuser/.vnc/classes.txt\" \"/home/myuser/.vnc/'+OUT_YOLO+'\"; do (cat "${f}"; echo); done > /home/myuser/CASE/'+DOCKERID+'_'+OUT_YOLO
     print("%s move YOLO output command : %s" % (TilesStr,COMMAND))
     CommandTS=ExecuteTS+TilesStr+COMMAND
     client.send_server(CommandTS)
@@ -388,12 +450,23 @@ def collect_Yolo(tileNum=-1,tileId='001',loadnodes=True):
         
     print("YOLO out :"+str(out))
 
+    # Test if YOLO definition is already in input tiledset 
+    # if (len(tile["comment"].split("YOLO="))>1):
+    #     tilecomment=eval(tile["comment"].split("YOLO=")[1])
+    # else:
+    #     tilecomment=[]
+
+    # List of new or old YOLO definitions 
+    yololist=out[str(TiledSet[tileNum])]
+    tilednodes[TiledSet[tileNum]]["comment"]=tile["comment"].split("YOLO=")[0]+"YOLO="+str(yololist)
+    
     with open("nodes.json",'r') as nodesf:
         nodes=json.load(nodesf)
         if ("YOLO" in nodes):
             nodes["YOLO"]=dict(nodes["YOLO"],**out)
         else:
             nodes["YOLO"]=out
+        nodes["tiledset"]=tilednodes
 
     print("New nodes YOLO : "+str(nodes["YOLO"]))
 
