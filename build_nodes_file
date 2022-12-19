@@ -64,13 +64,11 @@ while IFS='' read -r -u3 line || [[ -n "$line" ]]; do
   thishost=${line% *}
   pass=${line##* }
 
-  JsonStr=$(python3 -c "import json; print(json.load(open('tiledset.json'))['nodes']["$i"])")
-
   IFS=' ' read -r -a aline <<<${line2}
 
     # File name goes in the "info" field of nodes.json
   
-  file_name=$(python3 -c "import json; JsonStr=\"$JsonStr\".replace(\"'\", '\"'); tile=json.loads(JsonStr); print(tile[\"name\"])")
+  file_name=$(python3 -c "import json; tile=json.load(open('tiledset.json'))['nodes']["$i"]; print(tile[\"name\"])")
 
   # {"IdLocation" : "1",
 #  "dbid" : "15383",
@@ -95,9 +93,9 @@ while IFS='' read -r -u3 line || [[ -n "$line" ]]; do
     
 
   echo ' "url" : "'${URL}'?autoconnect=1&host='${HTTP_FRONTEND}'&port='${SOCKETdomain}${i0}'&encrypt=1&password='${pass}'&true_color=1",' >> nodes.json
-  echo ' "comment" : "'$( python3 -c "import re,json; JsonStr=\"$JsonStr\".replace(\"'\", '\"'); tile=json.loads(JsonStr); print(re.sub(r'png.*',r'png',tile[\"comment\"]))")' ' ${DATE}'",' >> nodes.json
+  echo ' "comment" : "'$( python3 -c "import re,json; tile=json.load(open('tiledset.json'))['nodes']["$i"]; print(re.sub(r'png.*',r'png',tile[\"comment\"]))")'", ' >> nodes.json
   echo ' "usersNotes"  : "node '$i'  : host '${thishost}' and file '${file_name}'",' >> nodes.json
-  LIST_Tags=$(python3 -c "import json; JsonStr=\"$JsonStr\".replace(\"'\", '\"'); tile=json.loads(JsonStr); print(str(tile[\"tags\"]).replace(\"'\", '\"'))")
+  LIST_Tags=$(python3 -c "import json; tile=json.load(open('tiledset.json'))['nodes']["$i"]; print(str(tile[\"tags\"]).replace(\"'\", '\"'))")
   echo ' "tags"  : '$LIST_Tags',' >> nodes.json
   
   echo '"connection" : 1' >> nodes.json
