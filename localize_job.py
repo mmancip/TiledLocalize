@@ -392,7 +392,7 @@ def next_element(script='labelImg_client',tileNum=-1,tileId='001'):
         nodes["nodes"][tileNum]["title"]=tileId+" "+file_name
         if ("variable" in nodes["nodes"][tileNum]):
             nodes["nodes"][tileNum]["variable"]="ID-"+tileId+"_"+file_name
-            nodes["nodes"][tileNum]["comment"]=tile["comment"]
+        nodes["nodes"][tileNum]["comment"]=tile["comment"]
         if ("usersNotes" in nodes["nodes"][tileNum]):
             nodes["nodes"][tileNum]["usersNotes"]=re.sub(r'file .*',"file "+os.path.join(dir_name,file_name),
                                                      nodes["nodes"][tileNum]["usersNotes"])+" tilenum "+str(nodeRead)
