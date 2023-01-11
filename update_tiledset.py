@@ -11,8 +11,9 @@ with open("tiledset.json") as nodes_json:
     
 i=0
 for tile in tiles["nodes"]:
-   tile["comment"]=tile["comment"]+" YOLO="+str(nodes["YOLO"][str(i)])
-   i=i+1 
+    if (str(i) in nodes["YOLO"]):
+        tile["comment"]=tile["comment"]+" YOLO="+str(nodes["YOLO"][str(i)])
+    i=i+1 
 
 
 with open("tiledset_.json",'w') as tiledset_f:
