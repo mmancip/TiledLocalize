@@ -1,3 +1,3 @@
 tar -cf config.tar --dereference actions.json case_config.ini tiledset.json list_hostsgpu site_config.ini \
-    build_nodes_file label.py labelImg_client kill_labelImg classes.txt
+    build_nodes_file build_wss.py label.py labelImg_client kill_labelImg classes.txt
 
