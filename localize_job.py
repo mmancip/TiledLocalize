@@ -4,7 +4,6 @@
 import configparser
 import sys,os,time
 import code
-import argparse
 import re, datetime
 import inspect
 
@@ -139,8 +138,9 @@ try:
     send_file_server(client,TileSet,".", "labelImg_client", JOBPath)
     send_file_server(client,TileSet,".", "kill_labelImg", JOBPath)
     send_file_server(client,TileSet,".", "build_nodes_file", JOBPath)
+    send_file_server(client,TileSet,".", "build_wss.py", JOBPath)
     send_file_server(client,TileSet,".", "label.py", JOBPath)
-    send_file_server(client,TileSet,".", "classes.txt", JOBPath)
+    #send_file_server(client,TileSet,".", "classes.txt", JOBPath)
     
 except:
     print("Error sending files !")
@@ -221,11 +221,12 @@ def launch_tunnel():
     if (not stateVM):
         return
 
-    commandTestFreePort="ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \'bash -c "echo \\$(python -c \\\"import socket; s=socket.socket(); s.bind((\\\\\\"\\\\\\", 0)); print(s.getsockname()[1]); s.close();\\\" )"\' > .vnc/port_wss'''
-    client.send_server(ExecuteTS+commandTestFreePort)
+    # Create list_wss file of free uniq socket port for each tile 
+    COMMAND=" bash -c './build_wss.py "+str(NUM_DOCKERS)+"; uniq -d list_wss' "
+    client.send_server(LaunchTS+' '+COMMAND)
     state=client.get_OK()
     stateVM=stateVM and (state == 0)
-    print("Out of get WSS PORT : "+ str(state))
+    print("Out of create list_wss : "+ str(state))
     if (not stateVM):
         return
 
@@ -234,14 +235,16 @@ def launch_tunnel():
         i0="%0.3d" % (i+1)
         TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
         SSH_JobPath=SSH_LOGIN+"@"+SSH_FRONTEND+":"+JOBPath
-        COMMANDi="bash -c \"while ( [ ! -f .vnc/port_wss ] ); do sleep 2; ls -la .vnc; done;"+\
+        COMMANDi="bash -c \""+\
                   " export PORT=\$(cat .vnc/port); "+\
-                  " export PORTWSS=\$(cat .vnc/port_wss); "+\
+                  " export PORTWSS=\$(sed '"+str(i+1)+"q;d' CASE/list_wss); "+\
                   " scp "+SSH_JobPath+"/nodes.json CASE/ ;"+\
                   " sed -e 's#port="+SOCKETdomain+i0+"#port='\$PORTWSS'#' -i CASE/nodes.json; "+\
                   " scp CASE/nodes.json "+SSH_JobPath+"/ ;"+\
                   " ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \' bash -c \\\" cd '''+TILEDOCKERS_path+"/..; "+\
-                  "    ./wss_websockify /etc/letsencrypt/archive/mdls.fr/fullchain2.pem /etc/letsencrypt/archive/mdls.fr/privkey2.pem "+''' \'\$PORTWSS\' \'\$PORT\' '''+TILEDOCKERS_path+"/../../TVWeb &"+\
+                  "    ./wss_websockify /etc/letsencrypt/archive/mdls.fr/fullchain2.pem "+\
+                  "                     /etc/letsencrypt/archive/mdls.fr/privkey2.pem "+\
+                  ''' \'\$PORTWSS\' \'\$PORT\' '''+TILEDOCKERS_path+"/../../TVWeb &"+\
                   ''' \\\"\' & ''' +\
                   "\""
         #"    LOG=/tmp/websockify_"+i0+"_\\\$(date +%F_%H-%M-%S).log; pwd > \\\\\$LOG;"+\
@@ -251,7 +254,6 @@ def launch_tunnel():
         # git clone https://github.com/novnc/noVNC.git noVNC
         # cd noVNC
         # git checkout 33e1462
-
         print("%s | %s" % (TILEi, COMMANDi)) 
         sys.stdout.flush()
         client.send_server(TILEi+COMMANDi)
@@ -329,9 +331,12 @@ def launch_one_client(script='labelImg_client',tileNum=-1,tileId='001'):
         TilesStr=' Tiles=('+tileId+') '
 
     get_old_YOLO(tile,nodeRead,TilesStr)
-        
-    file_name=os.path.basename(tile["url"])
-    dir_name=os.path.basename(os.path.dirname(tile["url"]))
+    
+    file_name1=tile["comment"].split('png')[0]
+    file_name=file_name1.split(' ')[-1]+'png'
+    #file_name=os.path.basename(tile["url"])
+    #dir_name=os.path.basename(os.path.dirname(tile["url"]))
+    dir_name=""
     
     COMMANDi=ExecuteTS+TilesStr+" cp "+os.path.join("/datas/"+dir_name,file_name)+" "+os.path.join("/home/myuser/.vnc/",file_name)
     print("%s copy input file command : %s" % (TilesStr,COMMANDi))
@@ -368,8 +373,11 @@ def next_element(script='labelImg_client',tileNum=-1,tileId='001'):
         TiledSet[tileNum]=nodeRead
         TilesStr=' Tiles=('+tileId+') '
 
-        file_name=os.path.basename(tile["url"])
-        dir_name=os.path.basename(os.path.dirname(tile["url"]))
+        file_name1=tile["comment"].split('png')[0]
+        file_name=file_name1.split(' ')[-1]+'png'
+        #file_name=os.path.basename(tile["url"])
+        #dir_name=os.path.basename(os.path.dirname(tile["url"]))
+        dir_name=""
     
         COMMANDi=ExecuteTS+TilesStr+" cp "+os.path.join("/datas/"+dir_name,file_name)+" "+os.path.join("/home/myuser/.vnc/",file_name)
         print("%s copy input file command : %s" % (TilesStr,COMMANDi))
