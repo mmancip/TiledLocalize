@@ -11,3 +11,5 @@ with open(listwss,'w') as fwss:
         WSS_PORT=s.getsockname()[1];
         s.close();
         fwss.write(str(WSS_PORT)+"\n")
+os.system("sort list_wss > list_wss__")
+os.system("uniq list_wss__ list_wss")
