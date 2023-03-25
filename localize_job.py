@@ -93,10 +93,6 @@ ExecuteTS='execute TS='+TileSet+" "
 # Launch a command on the frontend
 LaunchTS='launch TS='+TileSet+" "+JOBPath+' '
 
-# Build VMD dir
-# client.send_server(LaunchTS+" mkdir "+CASE)
-# print("Out of mkdir %s : %s" % (CASE, str(client.get_OK())))
-
 # Send CASE and SITE files
 try:
     client.send_server(LaunchTS+' chmod og-rxw '+JOBPath)
@@ -189,15 +185,18 @@ if (stateVM):
 
 try:
     if (stateVM):
-        launch_tunnel()
+        stateVM=launch_tunnel()
     sys.stdout.flush()
 except:
     stateVM=False
     traceback.print_exc(file=sys.stdout)
 
-nodesf=open("nodes.json",'r')
-nodes=json.load(nodesf)
-nodesf.close()    
+try:
+    nodesf=open("nodes.json",'r')
+    nodes=json.load(nodesf)
+    nodesf.close()    
+except:
+    traceback.print_exc(file=sys.stdout)
 
 try:
     if (stateVM):
